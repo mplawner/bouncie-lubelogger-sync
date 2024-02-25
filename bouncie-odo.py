@@ -39,6 +39,8 @@ SERVER_ADDRESS = (config['Server']['host'], int(config['Server']['port']))
 # LubeLogger API
 LUBELOGGER_SERVER_ADDRESS = f"http://{config['LubeLoggerAPI']['host']}:{int(config['LubeLoggerAPI']['port'])}"
 
+TARGET_DIR = config['Application']['target_dir']
+
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         query_components = parse_qs(urlparse(self.path).query)
@@ -170,7 +172,7 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
         logging.debug(f"Response: {response}")
         if response.status_code == 200:
             trips = response.json() 
-            with open(f'/mnt/homebox12t/docker-compose/lubelog/{vin}_trips.csv', mode='w', newline='') as file:
+            with open(f'{TARGET_DIR}/{vin}_trips.csv', mode='w', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(['Date', 'Odometer', 'Notes'])
                 for trip in trips:
