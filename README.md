@@ -16,7 +16,7 @@ This Python script integrates vehicle data from Bouncie with LubeLogger to updat
 
 ```bash
 git clone https://github.com/mplawner/bouncie-lubelogger-sync.git
-cd bouncei-lubelogger-sync
+cd bouncie-lubelogger-sync
 ```
 
 2. Create a virtual environment:
@@ -55,8 +55,11 @@ Create a `config.ini` file in the root directory of the project with the followi
 [BouncieAPI]
 client_id = YOUR_CLIENT_ID
 client_secret = YOUR_CLIENT_SECRET
-redirect_uri = YOUR_REDIRECT_URI
+redirect_uri = http://localhost:8080 # Must match Server below
 auth_url = https://auth.bouncie.com/oauth/authorize
+endpoint_url = https://api.bouncie.dev/v1
+token_url = https://auth.bouncie.com/oauth/token
+auth_file = /path/to/bouncie-lubelogger-sync/auth_code.txt
 
 [Server]
 host = localhost
@@ -67,7 +70,7 @@ host = LUBELOGGER_HOST_ADDRESS
 port = LUBELOGGER_PORT
 
 [Logging]
-log_file = app.log
+log_file = /path/to/bouncie-lubelogger-sync/app.log
 log_level = INFO
 ```
 
