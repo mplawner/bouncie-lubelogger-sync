@@ -1,15 +1,21 @@
 import requests
 from datetime import datetime, timedelta
 import csv
+import argparse
 import configparser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import os
 import logging
 
+# Set up argument parsing
+parser = argparse.ArgumentParser(description='Run the Bouncie Odometer Logger script.')
+parser.add_argument('--config', type=str, default='./config.ini', help='Path to the configuration file. Defaults to ./config.ini')
+args = parser.parse_args()
+
 # Load the configuration file
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(args.config)  # Use the path provided via the command line
 
 # Start Logging
 logging.basicConfig(filename=config['Logging']['log_file'],
@@ -236,4 +242,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
