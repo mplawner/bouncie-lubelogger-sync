@@ -69,6 +69,9 @@ port = 8080
 host = LUBELOGGER_HOST_ADDRESS
 port = LUBELOGGER_PORT
 
+[Application]
+target_dir = /path/to/output/csvfiles
+
 [Logging]
 log_file = /path/to/bouncie-lubelogger-sync/app.log
 log_level = INFO
@@ -81,7 +84,7 @@ Replace `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_REDIRECT_URI`, `LUBELOGGER
 To run the script, ensure your virtual environment is activated, then execute:
 
 ```bash
-python bouncie-odo.py
+python bouncie-odo.py --config config.ini
 ```
 
 ## Setting Up a Cron Job
@@ -97,7 +100,7 @@ crontab -e
 2. Add a line to schedule the script. For example, to run it every day at midnight:
 
 ```cron
-0 0 * * * /path/to/your/venv/bin/python /path/to/bouncie-odo.py >> /path/to/logfile.log 2>&1
+0 0 * * * /path/to/your/venv/bin/python /path/to/bouncie-odo.py --config /path/to/config.ini >> /path/to/logfile.log 2>&1
 ```
 
 Replace `/path/to/your/venv/bin/python` with the actual path to the Python executable in your virtual environment, and `/path/to/bouncie-odo.py` with the actual path to your `bouncie-odo.py` script.
