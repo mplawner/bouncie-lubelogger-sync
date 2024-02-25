@@ -4,7 +4,6 @@ import csv
 import configparser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
-import json
 import os
 import logging
 
@@ -19,25 +18,20 @@ logging.basicConfig(filename=config['Logging']['log_file'],
 
 logging.info("Application started")
 
-# Read the Bouncie API credentials from the config file
+# Read the Bouncie API credentials
 CLIENT_ID = config['BouncieAPI']['client_id']
 CLIENT_SECRET = config['BouncieAPI']['client_secret']
 REDIRECT_URI = config['BouncieAPI']['redirect_uri']
 AUTH_URL = config['BouncieAPI']['auth_url']
+BOUNCIE_API_ENDPOINT = config['BouncieAPI']['endpoint_url']
+TOKEN_URL = config['BouncieAPI']['token_url']
+AUTH_FILE = config['BouncieAPI']['auth_file']
 
 # Read the local server address
 SERVER_ADDRESS = (config['Server']['host'], int(config['Server']['port']))
 
-# Bouncie API endpoints
-BOUNCIE_API_ENDPOINT = "https://api.bouncie.dev/v1"
-
 # LubeLogger API
 LUBELOGGER_SERVER_ADDRESS = f"http://{config['LubeLoggerAPI']['host']}:{int(config['LubeLoggerAPI']['port'])}"
-
-# File to store the access and refresh tokens
-AUTH_FILE = "auth_code.txt"
-TOKEN_FILE = "bouncie_token.json"
-TOKEN_URL = "https://auth.bouncie.com/oauth/token"
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -87,9 +81,6 @@ def get_tokens(auth_code):
     response = requests.post(TOKEN_URL, headers=headers, json=data)
     if response.status_code == 200:
         tokens = response.json()
-        # # No need to save tokens since they expire in 3600 seconds
-        # with open(TOKEN_FILE, 'w') as file:
-        #     json.dump(tokens, file)
         return tokens
     else:
         logging.error(f"Failed to exchange authorization code for tokens: {response.status_code}")
@@ -173,7 +164,7 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
         logging.debug(f"Response: {response}")
         if response.status_code == 200:
             trips = response.json() 
-            with open(f'{vin}_trips.csv', mode='w', newline='') as file:
+            with open(f'/mnt/homebox12t/docker-compose/lubelog/{vin}_trips.csv', mode='w', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(['Date', 'Odometer', 'Notes'])
                 for trip in trips:
@@ -189,8 +180,6 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
 
 def update_lube_logger_odometer(vehicle_id, date, odometer, notes):
     endpoint = f"{LUBELOGGER_SERVER_ADDRESS}/api/vehicle/odometerrecords/add?vehicleId={vehicle_id}"
-    #headers = {'Authorization': f'Bearer {lube_logger_auth}'}
-    # Convert ISO date format to MM/DD/YYYY
     date_obj = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ")
     date_formatted = date_obj.strftime("%m/%d/%Y")
 
@@ -202,7 +191,6 @@ def update_lube_logger_odometer(vehicle_id, date, odometer, notes):
         'odometer': odometer, 
         'notes': notes 
     }
-    #response = requests.post(endpoint, headers=headers, json=data)
 
     response = requests.post(endpoint, data=data)
     if response.status_code == 200:
@@ -216,7 +204,7 @@ def main():
         with open(AUTH_FILE, 'r') as file:
             auth_code = file.read().strip()
             tokens = get_tokens(auth_code)
-            if tokens:  # Check if tokens is not None
+            if tokens:  
                 access_token = tokens.get('access_token')
                 logging.info("Found authentication file, generated new token")
             else:
@@ -226,7 +214,7 @@ def main():
         auth_code = get_auth_code()
         if auth_code:
             tokens = get_tokens(auth_code)
-            if tokens:  # Check if tokens is not None
+            if tokens:  
                 access_token = tokens.get('access_token')
                 logging.info("New authentication file created, and token generated")
             else:
@@ -248,3 +236,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+  
