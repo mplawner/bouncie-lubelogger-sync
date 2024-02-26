@@ -33,6 +33,10 @@ BOUNCIE_API_ENDPOINT = config['BouncieAPI']['endpoint_url']
 TOKEN_URL = config['BouncieAPI']['token_url']
 AUTH_FILE = config['BouncieAPI']['auth_file']
 
+# Read the LocationIQ API credentials
+LOCATIONIQ_API_ENDPOINT = config['LocationIQ']['endpoint_url']
+LOCATIONIQ_API_KEY = config['LocationIQ']['api_key'] 
+
 # Read the local server address
 SERVER_ADDRESS = (config['Server']['host'], int(config['Server']['port']))
 
@@ -163,7 +167,7 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
         trips_endpoint = f"{BOUNCIE_API_ENDPOINT}/trips"
         params = {
             'imei': imei,
-            'gps-format': 'polyline'  # Or 'geojson', depending on your requirement
+            'gps-format': 'geojson'  # Either polyline or geojson,  depending on your requirement
         }
         headers = {'Authorization': f'{access_token}'}
         response = requests.get(trips_endpoint, headers=headers, params=params)
@@ -178,10 +182,14 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
                 for trip in trips:
                     date = trip['endTime']
                     odometer = trip['endOdometer']
-                    notes = f"{trip['distance']} miles"
+                    notes = f"Distance: {trip['distance']} miles"
+                    gps = trip['gps']
                     if int(odometer) > int(lubelogger_max_odo):
-                        writer.writerow([date, odometer, notes])
+                        trip_notes = trip_description(gps)
+                        notes = f"{trip_notes}\n{notes}"
                         update_lube_logger_odometer(lubelogger_vehicle_id, date, odometer, notes)
+                        notes = notes.replace("\n", "\\n")
+                        writer.writerow([date, odometer, notes])
             logging.info(f"Trips for vehicle {vin} saved successfully.")
         else:
             logging.error(f"Failed to fetch trips for vehicle {vin}: {response.status_code}")
@@ -205,6 +213,44 @@ def update_lube_logger_odometer(vehicle_id, date, odometer, notes):
         logging.info(f"Successfully updated odometer for vehicle ID {vehicle_id}")
     else:
         logging.error(f"Failed to update odometer for vehicle ID {vehicle_id}: {response.status_code}")
+
+def get_address(lat, lon):
+    params = {
+        "key": LOCATIONIQ_API_KEY,
+        "lat": lat,
+        "lon": lon,
+        "format": "json"
+    }
+    response = requests.get(LOCATIONIQ_API_ENDPOINT, params=params)
+    # if response.status_code == 200:
+    #     data = response.json()
+    #     address = data.get("display_name", "Unknown location")
+    #     logging.debug(f"Got Address {address}")
+    #     return address
+    if response.status_code == 200:
+        data = response.json()
+        address_components = data.get("address", {})
+        # Extracting specific components for formatting
+        house_number = address_components.get("house_number", "")
+        road = address_components.get("road", "")
+        city = address_components.get("city", "")
+        state = address_components.get("state", "")
+        formatted_address = f"{house_number} {road}, {city}, {state}".strip(", ")
+        logging.debug(f"Got Address {formatted_address}")
+        return formatted_address
+    else:
+        logging.error(f"Error retrieving address for lat {lat} and lon {lon}")
+        return "Unknown location"
+
+def trip_description(geojson_line_string):
+    coordinates = geojson_line_string['coordinates']
+    start_coord = coordinates[0]
+    end_coord = coordinates[-1]
+
+    start_address = get_address(start_coord[1], start_coord[0])
+    end_address = get_address(end_coord[1], end_coord[0])
+
+    return f"Start: {start_address}\nEnd: {end_address}"
 
 def main():
     # Authenticate

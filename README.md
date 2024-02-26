@@ -69,6 +69,10 @@ port = 8080
 host = LUBELOGGER_HOST_ADDRESS
 port = LUBELOGGER_PORT
 
+[LocationIQ]
+endpoint_url = https://us1.locationiq.com/v1/reverse.php
+api_key = YOUR_API_KEY
+
 [Application]
 target_dir = /path/to/output/csvfiles
 
