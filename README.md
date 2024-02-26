@@ -44,7 +44,7 @@ source venv/bin/activate
 Install the required Python packages:
 
 ```bash
-pip install requests
+pip install requests pytz
 ```
 
 ## Configuration
@@ -75,6 +75,7 @@ api_key = YOUR_API_KEY
 
 [Application]
 target_dir = /path/to/output/csvfiles
+timezone = America/New_York
 
 [Logging]
 log_file = /path/to/bouncie-lubelogger-sync/app.log

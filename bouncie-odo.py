@@ -1,5 +1,6 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
+import pytz
 import csv
 import argparse
 import configparser
@@ -44,6 +45,7 @@ SERVER_ADDRESS = (config['Server']['host'], int(config['Server']['port']))
 LUBELOGGER_SERVER_ADDRESS = f"http://{config['LubeLoggerAPI']['host']}:{int(config['LubeLoggerAPI']['port'])}"
 
 TARGET_DIR = config['Application']['target_dir']
+TIMEZONE = config['Application']['timezone']
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -181,22 +183,27 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
                 writer.writerow(['Date', 'Odometer', 'Notes'])
                 for trip in trips:
                     date = trip['endTime']
+                    target_timezone = pytz.timezone(TIMEZONE)
+                    date_with_timezone = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc).astimezone(target_timezone)
                     odometer = trip['endOdometer']
                     notes = f"Distance: {trip['distance']} miles"
                     gps = trip['gps']
                     if int(odometer) > int(lubelogger_max_odo):
                         trip_notes = trip_description(gps)
                         notes = f"{trip_notes}\n{notes}"
-                        update_lube_logger_odometer(lubelogger_vehicle_id, date, odometer, notes)
+                        update_lube_logger_odometer(lubelogger_vehicle_id, date_with_timezone, odometer, notes)
                         notes = notes.replace("\n", "\\n")
-                        writer.writerow([date, odometer, notes])
+                        writer.writerow([date_with_timezone, odometer, notes])
             logging.info(f"Trips for vehicle {vin} saved successfully.")
         else:
             logging.error(f"Failed to fetch trips for vehicle {vin}: {response.status_code}")
 
 def update_lube_logger_odometer(vehicle_id, date, odometer, notes):
     endpoint = f"{LUBELOGGER_SERVER_ADDRESS}/api/vehicle/odometerrecords/add?vehicleId={vehicle_id}"
-    date_obj = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ")
+    print (date)
+    #date_obj = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ")
+    date_obj = datetime.strptime(str(date), "%Y-%m-%d %H:%M:%S%z")
+
     date_formatted = date_obj.strftime("%m/%d/%Y")
 
     odometer = int(odometer)
