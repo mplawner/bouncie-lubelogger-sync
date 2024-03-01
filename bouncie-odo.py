@@ -197,7 +197,7 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
                     target_timezone = pytz.timezone(TIMEZONE)
                     date_with_timezone = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc).astimezone(target_timezone)
                     odometer = trip['endOdometer']
-                    notes = f"Distance: {trip['distance']} miles"
+                    notes = f"Distance: {trip['distance']:.1f} miles"
                     gps = trip['gps']
                     if int(odometer) > int(lubelogger_max_odo):
                         trip_notes = trip_description(gps)
