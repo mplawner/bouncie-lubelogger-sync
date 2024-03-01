@@ -163,7 +163,9 @@ def lubelogger_max_odo_reading(vehicle_id):
         logging.error(f"Failed to fetch odometer records: {response.status_code}")
         return 0.0
 
-def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
+def fetch_trips_and_update(access_token, vehicles, lubelogger_vehicles):
+    target_timezone = pytz.timezone(TIMEZONE)
+
     for vehicle in vehicles:
         imei = vehicle['imei'] 
         vin = vehicle['vin']  
@@ -187,27 +189,44 @@ def fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles):
         logging.debug(f"Headers: {headers}")
         logging.debug(f"Parameters: {params}")
         logging.debug(f"Response: {response}")
+
         if response.status_code == 200:
             trips = response.json() 
-            with open(f'{TARGET_DIR}/{vin}_trips.csv', mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(['Date', 'Odometer', 'Notes'])
-                for trip in trips:
+            for trip in trips:
+                odometer = trip['endOdometer']
+                logging.debug(f"Odometer: {odometer} - Lubelogger_max_odo: {lubelogger_max_odo}")
+                if int(odometer) > int(lubelogger_max_odo):
+                    # Prepare the data row
                     date = trip['endTime']
-                    target_timezone = pytz.timezone(TIMEZONE)
                     date_with_timezone = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc).astimezone(target_timezone)
-                    odometer = trip['endOdometer']
-                    notes = f"Distance: {trip['distance']:.1f} miles"
+                    distance = f"- **Distance:** {trip['distance']:.1f} miles"
                     gps = trip['gps']
-                    if int(odometer) > int(lubelogger_max_odo):
-                        trip_notes = trip_description(gps)
-                        notes = f"{trip_notes}\n{notes}"
-                        update_lube_logger_odometer(lubelogger_vehicle_id, date_with_timezone, odometer, notes)
-                        notes = notes.replace("\n", "\\n")
-                        writer.writerow([date_with_timezone, odometer, notes])
+                    trip_track = trip_description(gps)
+
+                    #Post to LubeLogger
+                    notes = f"{distance}\n{trip_track}"
+                    update_lube_logger_odometer(lubelogger_vehicle_id, date_with_timezone, odometer, notes)
+
+                    #Post to CSV
+                    file_path = f'{TARGET_DIR}/{vin}_trips.csv'
+                    notes = notes.replace("\n", "\\n")
+                    data_row = [date_with_timezone, odometer, notes]
+                    update_csv(file_path, data_row)
+                    
             logging.info(f"Trips for vehicle {vin} saved successfully.")
         else:
             logging.error(f"Failed to fetch trips for vehicle {vin}: {response.status_code}")
+
+def update_csv(file_path, data_row):
+    # Check if file exists to determine if headers are needed
+    file_exists = os.path.isfile(file_path)
+    
+    with open(file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        # If the file does not exist, write the header first
+        if not file_exists:
+            writer.writerow(['Date', 'Odometer', 'Notes'])
+        writer.writerow(data_row)
 
 def update_lube_logger_odometer(vehicle_id, date, odometer, notes):
     endpoint = f"{LUBELOGGER_SERVER_ADDRESS}/api/vehicle/odometerrecords/add?vehicleId={vehicle_id}"
@@ -239,6 +258,7 @@ def get_address(lat, lon):
         "lon": lon,
         "format": "json"
     }
+    maps_url = f"https://maps.google.com/?q={lat},{lon}"
     response = requests.get(LOCATIONIQ_API_ENDPOINT, params=params)
     # if response.status_code == 200:
     #     data = response.json()
@@ -255,10 +275,12 @@ def get_address(lat, lon):
         state = address_components.get("state", "")
         formatted_address = f"{house_number} {road}, {city}, {state}".strip(", ")
         logging.debug(f"Got Address {formatted_address}")
-        return formatted_address
+        return f"[{formatted_address}]({maps_url})"
     else:
         logging.error(f"Error retrieving address for lat {lat} and lon {lon}")
-        return "Unknown location"
+        # Return a markdown link to Google Maps coordinates
+        return f"[View on Google Maps]({maps_url})"
+        #return "Unknown location"
 
 def trip_description(geojson_line_string):
     coordinates = geojson_line_string.get('coordinates', [])
@@ -269,7 +291,7 @@ def trip_description(geojson_line_string):
         start_address = get_address(start_coord[1], start_coord[0])
         end_address = get_address(end_coord[1], end_coord[0])
 
-        return f"Start: {start_address}\nEnd: {end_address}"
+        return f"- **Start:** {start_address}\n- **End:** {end_address}"
     else:
         # Handle the case where there are not enough coordinates for a trip
         return "Insufficient data for trip description."
@@ -304,7 +326,7 @@ def main():
     lubelogger_vehicles = fetch_lubelogger_vehicles()
 
     if vehicles and lubelogger_vehicles:
-        fetch_trips_and_generate_csvs(access_token, vehicles, lubelogger_vehicles)
+        fetch_trips_and_update(access_token, vehicles, lubelogger_vehicles)
     else:
         logging.error("No vehicles found or failed to fetch vehicles.")
 
