@@ -49,6 +49,8 @@ pip install requests pytz
 
 ## Configuration
 
+In Lubelogger, be sure that for each of your vehicles you have a tag set with the VIN number.
+
 Create a `config.ini` file in the root directory of the project with the following structure:
 
 ```ini
