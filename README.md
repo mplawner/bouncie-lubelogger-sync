@@ -1,6 +1,6 @@
 # Bouncie Odometer Logger
 
-This Python script integrates vehicle data from Bouncie with Hargata's (https://github.com/hargata/lubelog)[LubeLogger] to update odometer readings automatically.
+This Python script integrates vehicle data from Bouncie with Hargata's [LubeLog](https://github.com/hargata/lubelog) to update odometer readings automatically.
 
 ## Installation
 
