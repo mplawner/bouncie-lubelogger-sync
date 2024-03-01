@@ -138,15 +138,26 @@ def lubelogger_max_odo_reading(vehicle_id):
     #headers = {'Authorization': f'Bearer {lube_logger_auth}'}
     params = {'vehicleId': vehicle_id}
     #response = requests.get(endpoint, headers=headers, params=params)
+    logging.info(f"Fetching odometer records for vehicle ID {vehicle_id} from {endpoint}")
+
     response = requests.get(endpoint, params=params)
 
     if response.status_code == 200:
-        odometer_records = response.json()
-        if odometer_records:
-            highest_record = max(odometer_records, key=lambda x: x['odometer'])
-            return float(highest_record['odometer']) 
-        else:
-            logging.info("No odometer records found.")
+        logging.info(f"Successfully fetched data for vehicle ID {vehicle_id}")
+        try:
+            odometer_records = response.json()
+            if odometer_records and all('odometer' in record for record in odometer_records):
+                # Convert odometer reading to float if necessary
+                for record in odometer_records:
+                    record['odometer'] = float(record['odometer'])
+                highest_record = max(odometer_records, key=lambda x: x['odometer'])
+                logging.info(f"Highest odometer reading for vehicle ID {vehicle_id}: {highest_record['odometer']}")
+                return highest_record['odometer']
+            else:
+                logging.warning("No valid odometer records found or missing 'odometer' key.")
+                return 0.0
+        except ValueError as e:
+            logging.error(f"Error processing odometer records: {e}")
             return 0.0
     else:
         logging.error(f"Failed to fetch odometer records: {response.status_code}")
@@ -250,14 +261,18 @@ def get_address(lat, lon):
         return "Unknown location"
 
 def trip_description(geojson_line_string):
-    coordinates = geojson_line_string['coordinates']
-    start_coord = coordinates[0]
-    end_coord = coordinates[-1]
+    coordinates = geojson_line_string.get('coordinates', [])
+    if len(coordinates) >= 2:
+        start_coord = coordinates[0]
+        end_coord = coordinates[-1]
 
-    start_address = get_address(start_coord[1], start_coord[0])
-    end_address = get_address(end_coord[1], end_coord[0])
+        start_address = get_address(start_coord[1], start_coord[0])
+        end_address = get_address(end_coord[1], end_coord[0])
 
-    return f"Start: {start_address}\nEnd: {end_address}"
+        return f"Start: {start_address}\nEnd: {end_address}"
+    else:
+        # Handle the case where there are not enough coordinates for a trip
+        return "Insufficient data for trip description."
 
 def main():
     # Authenticate
